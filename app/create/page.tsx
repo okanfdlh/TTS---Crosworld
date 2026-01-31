@@ -9,8 +9,17 @@ type WordInput = {
   clue: string;
 };
 
+type PlacedWord = {
+  answer: string;
+  clue: string;
+  row: number;
+  col: number;
+  direction: "across" | "down";
+};
+
 type PreviewResult = {
   grid: { letter: string | null }[][];
+  placedWords: PlacedWord[];
 };
 
 export default function CreatePage() {
@@ -19,6 +28,7 @@ export default function CreatePage() {
   ]);
 
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [loading, setLoading] = useState(false);
 
   function addWord() {
     setWords([...words, { answer: "", clue: "" }]);
@@ -48,42 +58,39 @@ export default function CreatePage() {
 
   function validate() {
     if (words.length < 5) return false;
-
-    for (const word of words) {
-      if (!word.answer.trim() || !word.clue.trim()) {
-        return false;
-      }
-    }
-
-    return true;
+    return words.every(
+      (w) => w.answer.trim().length > 0 && w.clue.trim().length > 0
+    );
   }
 
   function handleGenerate() {
     if (!validate()) {
-      alert("Please fill at least 5 words with valid answers and clues");
+      alert("Minimum 5 words with valid answers & clues");
       return;
     }
 
     const result = generateCrossword(words);
     setPreview(result);
   }
+
   async function handlePublish() {
-  if (!preview) return;
+    if (!preview) return;
 
-  const res = await fetch("/api/puzzles", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: "My Crossword Puzzle",
-      grid: preview.grid,
-      words: preview.placedWords ?? [],
-    }),
-  });
+    setLoading(true);
 
-  const puzzle = await res.json();
-  window.location.href = `/puzzle/${puzzle.id}`;
-}
+    const res = await fetch("/api/puzzles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `Crossword ${new Date().toLocaleString()}`,
+        grid: preview.grid,
+        words: preview.placedWords,
+      }),
+    });
 
+    const puzzle = await res.json();
+    window.location.href = `/puzzle/${puzzle.id}`;
+  }
 
   return (
     <main className="max-w-3xl mx-auto p-8">
@@ -140,7 +147,7 @@ export default function CreatePage() {
         Words: {words.length} / Minimum 5
       </p>
 
-      <div className="mt-6">
+      <div className="mt-6 flex gap-4">
         <button
           onClick={handleGenerate}
           disabled={!validate()}
@@ -153,6 +160,16 @@ export default function CreatePage() {
         >
           Generate TTS
         </button>
+
+        {preview && (
+          <button
+            onClick={handlePublish}
+            disabled={loading}
+            className="px-6 py-2 bg-green-600 text-white rounded"
+          >
+            {loading ? "Publishing..." : "Publish Puzzle"}
+          </button>
+        )}
       </div>
 
       {preview && (
@@ -163,15 +180,4 @@ export default function CreatePage() {
       )}
     </main>
   );
-  {preview && (
-  <div className="mt-4">
-    <button
-      onClick={handlePublish}
-      className="px-6 py-2 bg-green-600 text-white rounded"
-    >
-      Publish Puzzle
-    </button>
-  </div>
-)}
-
 }

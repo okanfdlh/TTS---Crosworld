@@ -1,13 +1,20 @@
 import { prisma } from "@/lib/prisma";
-import CrosswordGridPlayer from "../../../components/CrosswordGridPlayer";
+import CrosswordGridPlayer from "@/components/CrosswordGridPlayer";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export default async function PuzzlePage({ params }: Props) {
+  const { id } = await params; 
+  const puzzleId = Number(id);
+
+  if (Number.isNaN(puzzleId)) {
+    return <div className="p-8">Invalid puzzle ID</div>;
+  }
+
   const puzzle = await prisma.puzzle.findUnique({
-    where: { id: Number(params.id) },
+    where: { id: puzzleId },
   });
 
   if (!puzzle) {
