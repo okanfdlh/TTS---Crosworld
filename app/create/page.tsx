@@ -26,9 +26,9 @@ export default function CreatePage() {
   const [words, setWords] = useState<WordInput[]>([
     { answer: "", clue: "" },
   ]);
-
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function addWord() {
     setWords([...words, { answer: "", clue: "" }]);
@@ -43,33 +43,43 @@ export default function CreatePage() {
     field: keyof WordInput,
     value: string
   ) {
-    const updated = [...words];
-
-    if (field === "answer") {
-      updated[index][field] = value
-        .toUpperCase()
-        .replace(/[^A-Z]/g, "");
-    } else {
-      updated[index][field] = value;
-    }
-
-    setWords(updated);
+    setWords((prev) => {
+      const updated = [...prev];
+      updated[index][field] =
+        field === "answer"
+          ? value.toUpperCase().replace(/[^A-Z]/g, "")
+          : value;
+      return updated;
+    });
   }
 
-  function validate() {
-    if (words.length < 5) return false;
-    return words.every(
-      (w) => w.answer.trim().length > 0 && w.clue.trim().length > 0
+  function isValid() {
+    return (
+      words.length >= 5 &&
+      words.every(
+        (w) => w.answer.trim().length > 0 && w.clue.trim().length > 0
+      )
     );
   }
 
   function handleGenerate() {
-    if (!validate()) {
-      alert("Minimum 5 words with valid answers & clues");
+    setError(null);
+    setPreview(null);
+
+    if (!isValid()) {
+      setError("Minimum 5 words with valid answers and clues.");
       return;
     }
 
     const result = generateCrossword(words);
+
+    if (result.placedWords.length < 5) {
+      setError(
+        `Only ${result.placedWords.length} words could be placed. Try different words.`
+      );
+      return;
+    }
+
     setPreview(result);
   }
 
@@ -77,19 +87,29 @@ export default function CreatePage() {
     if (!preview) return;
 
     setLoading(true);
+    setError(null);
 
-    const res = await fetch("/api/puzzles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: `Crossword ${new Date().toLocaleString()}`,
-        grid: preview.grid,
-        words: preview.placedWords,
-      }),
-    });
+    try {
+      const res = await fetch("/api/puzzles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Crossword ${new Date().toLocaleString()}`,
+          grid: preview.grid,
+          words: preview.placedWords,
+        }),
+      });
 
-    const puzzle = await res.json();
-    window.location.href = `/puzzle/${puzzle.id}`;
+      if (!res.ok) {
+        throw new Error("Failed to publish puzzle");
+      }
+
+      const puzzle = await res.json();
+      window.location.href = `/puzzle/${puzzle.id}`;
+    } catch (err) {
+      setError("Failed to publish puzzle. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -113,7 +133,6 @@ export default function CreatePage() {
               }
               className="w-full border px-3 py-2 rounded"
             />
-
             <input
               type="text"
               placeholder="Clue"
@@ -147,13 +166,17 @@ export default function CreatePage() {
         Words: {words.length} / Minimum 5
       </p>
 
+      {error && (
+        <p className="mt-4 text-sm text-red-600">{error}</p>
+      )}
+
       <div className="mt-6 flex gap-4">
         <button
           onClick={handleGenerate}
-          disabled={!validate()}
+          disabled={!isValid() || loading}
           className={`px-6 py-2 rounded text-white
             ${
-              validate()
+              isValid()
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-gray-400 cursor-not-allowed"
             }`}
@@ -174,7 +197,10 @@ export default function CreatePage() {
 
       {preview && (
         <div className="mt-8">
-          <h2 className="font-bold mb-2">Preview</h2>
+          <h2 className="font-bold mb-1">Preview</h2>
+          <p className="text-sm text-gray-500 mb-2">
+            {preview.placedWords.length} words placed
+          </p>
           <CrosswordGrid grid={preview.grid} />
         </div>
       )}

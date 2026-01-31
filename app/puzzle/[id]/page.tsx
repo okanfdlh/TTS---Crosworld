@@ -1,49 +1,51 @@
-import { prisma } from "@/lib/prisma";
-import CrosswordGridPlayer from "@/components/CrosswordGridPlayer";
+"use client";
 
-type Props = {
-  params: Promise<{ id: string }>;
+import { useEffect, useState } from "react";
+import CrosswordPlayerGrid from "../../../components/CrosswordPlayerGrid";
+
+type Cell = {
+  solution: string | null;
+  value: string;
 };
 
-export default async function PuzzlePage({ params }: Props) {
-  const { id } = await params; 
-  const puzzleId = Number(id);
+export default function PuzzlePage({ puzzle }: any) {
+  const [cells, setCells] = useState<Cell[][]>([]);
+  const [activeCell, setActiveCell] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
 
-  if (Number.isNaN(puzzleId)) {
-    return <div className="p-8">Invalid puzzle ID</div>;
-  }
+  useEffect(() => {
+    const initial: Cell[][] = puzzle.grid.map((row: any[]) =>
+      row.map((cell) => ({
+        solution: cell.letter,
+        value: "",
+      }))
+    );
 
-  const puzzle = await prisma.puzzle.findUnique({
-    where: { id: puzzleId },
-  });
+    setCells(initial);
+  }, [puzzle]);
 
-  if (!puzzle) {
-    return <div className="p-8">Puzzle not found</div>;
+  function handleChange(row: number, col: number, value: string) {
+    setCells((prev) => {
+      const copy = prev.map((r) => [...r]);
+      copy[row][col].value = value;
+      return copy;
+    });
   }
 
   return (
-    <main className="p-8 max-w-5xl mx-auto">
+    <main className="max-w-4xl mx-auto p-8">
       <h1 className="text-2xl font-bold mb-4">
-        Crossword Puzzle #{puzzle.id}
+        Crossword Puzzle
       </h1>
 
-      <div className="flex gap-8">
-        <CrosswordGridPlayer grid={puzzle.grid as any} />
-
-        <div>
-          <h2 className="font-semibold mb-2">Clues</h2>
-          <ul className="space-y-1 text-sm">
-            {(puzzle.words as any[]).map((w, i) => (
-              <li key={i}>
-                <strong>
-                  {w.direction === "across" ? "Across" : "Down"}
-                </strong>{" "}
-                ({w.answer.length}) – {w.clue}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      <CrosswordPlayerGrid
+        cells={cells}
+        activeCell={activeCell}
+        setActiveCell={setActiveCell}
+        onChange={handleChange}
+      />
     </main>
   );
 }

@@ -1,19 +1,35 @@
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
+    const { title, grid, words } = body;
 
-  const puzzle = await prisma.puzzle.create({
-    data: {
-      title: body.title,
-      size: body.grid.length,
-      grid: body.grid,
-      words: body.words,
-    },
-  });
+    if (!title || !grid || !words) {
+      return NextResponse.json(
+        { error: "Invalid payload" },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json(puzzle);
+    const puzzle = await prisma.puzzle.create({
+      data: {
+        title,
+        size: grid.length,
+        grid,
+        words,
+      },
+    });
+
+    return NextResponse.json(puzzle);
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET() {
