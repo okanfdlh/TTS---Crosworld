@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Puzzle {
+  id        Int      @id @default(autoincrement())
+  title     String
+  size      Int
+  grid      Json
+  words     Json
+  createdAt DateTime @default(now())
+}
