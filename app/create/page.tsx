@@ -67,6 +67,23 @@ export default function CreatePage() {
     const result = generateCrossword(words);
     setPreview(result);
   }
+  async function handlePublish() {
+  if (!preview) return;
+
+  const res = await fetch("/api/puzzles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: "My Crossword Puzzle",
+      grid: preview.grid,
+      words: preview.placedWords ?? [],
+    }),
+  });
+
+  const puzzle = await res.json();
+  window.location.href = `/puzzle/${puzzle.id}`;
+}
+
 
   return (
     <main className="max-w-3xl mx-auto p-8">
@@ -146,4 +163,15 @@ export default function CreatePage() {
       )}
     </main>
   );
+  {preview && (
+  <div className="mt-4">
+    <button
+      onClick={handlePublish}
+      className="px-6 py-2 bg-green-600 text-white rounded"
+    >
+      Publish Puzzle
+    </button>
+  </div>
+)}
+
 }
