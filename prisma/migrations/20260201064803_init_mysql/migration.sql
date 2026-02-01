@@ -1,10 +1,8 @@
 -- CreateTable
 CREATE TABLE `Puzzle` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `id` VARCHAR(191) NOT NULL,
     `title` VARCHAR(191) NOT NULL,
-    `size` INTEGER NOT NULL,
-    `grid` JSON NOT NULL,
-    `words` JSON NOT NULL,
+    `data` LONGTEXT NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)

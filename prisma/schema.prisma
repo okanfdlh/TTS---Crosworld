@@ -8,11 +8,8 @@ datasource db {
 }
 
 model Puzzle {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   title     String
-  size      Int
-  grid      Json
-  words     Json
+  data      String   @db.LongText // JSON string containing grid, words, clues
   createdAt DateTime @default(now())
 }
-

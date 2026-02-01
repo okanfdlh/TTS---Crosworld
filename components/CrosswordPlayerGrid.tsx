@@ -1,57 +1,98 @@
-"use client";
-
-type Cell = {
-  solution: string | null;
-  value: string;
-};
+import { Cell, Direction, GridState, PlacedWord } from "@/lib/types";
+import { useEffect, useRef } from "react";
 
 type Props = {
-  cells: Cell[][];
-  onChange: (row: number, col: number, value: string) => void;
-  activeCell: { row: number; col: number } | null;
-  setActiveCell: (pos: { row: number; col: number }) => void;
+  grid: GridState;
+  userInputs: Record<string, string>; // key: "r-c", value: letter
+  activeCell: { r: number; c: number } | null;
+  direction: Direction;
+  onCellClick: (r: number, c: number) => void;
+  onInputChange: (r: number, c: number, char: string) => void;
+  onKeyDown: (e: React.KeyboardEvent, r: number, c: number) => void;
+  highlightedWord: PlacedWord | null;
 };
 
 export default function CrosswordPlayerGrid({
-  cells,
-  onChange,
+  grid,
+  userInputs,
   activeCell,
-  setActiveCell,
+  direction,
+  onCellClick,
+  onInputChange,
+  onKeyDown,
+  highlightedWord,
 }: Props) {
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    if (activeCell) {
+      const key = `${activeCell.r}-${activeCell.c}`;
+      inputRefs.current[key]?.focus();
+    }
+  }, [activeCell]);
+
+  const isCellInHighlightedWord = (r: number, c: number) => {
+    if (!highlightedWord) return false;
+    
+    if (highlightedWord.direction === "across") {
+      return (
+        r === highlightedWord.row &&
+        c >= highlightedWord.col &&
+        c < highlightedWord.col + highlightedWord.answer.length
+      );
+    } else {
+      return (
+        c === highlightedWord.col &&
+        r >= highlightedWord.row &&
+        r < highlightedWord.row + highlightedWord.answer.length
+      );
+    }
+  };
+
   return (
     <div
-      className="grid gap-1"
+      className="grid gap-0.5 border-2 border-black bg-black w-fit select-none"
       style={{
-        gridTemplateColumns: `repeat(${cells[0].length}, 40px)`,
+        gridTemplateColumns: `repeat(${grid.cols}, minmax(32px, 1fr))`,
       }}
     >
-      {cells.map((row, r) =>
+      {grid.cells.map((row, r) =>
         row.map((cell, c) => {
-          if (!cell.solution) {
+          const isBlack = !cell.letter;
+          const isActive = activeCell?.r === r && activeCell?.c === c;
+          const isHighlighted = isCellInHighlightedWord(r, c);
+          const key = `${r}-${c}`;
+          const value = userInputs[key] || "";
+
+          if (isBlack) {
             return (
-              <div
-                key={`${r}-${c}`}
-                className="w-10 h-10 bg-black"
-              />
+              <div key={key} className="bg-gray-900 w-8 h-8 sm:w-10 sm:h-10" />
             );
           }
 
-          const isActive =
-            activeCell?.row === r && activeCell?.col === c;
-
           return (
-            <input
-              key={`${r}-${c}`}
-              value={cell.value}
-              maxLength={1}
-              onClick={() => setActiveCell({ row: r, col: c })}
-              onChange={(e) =>
-                onChange(r, c, e.target.value.toUpperCase())
-              }
-              className={`w-10 h-10 border text-center font-bold uppercase
-                ${isActive ? "bg-blue-100 border-blue-500" : ""}
+            <div
+              key={key}
+              className={`relative w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center font-bold uppercase
+                ${isActive ? "bg-yellow-200" : isHighlighted ? "bg-blue-100" : "bg-white"}
               `}
-            />
+              onClick={() => onCellClick(r, c)}
+            >
+              {cell.clueIndex && (
+                <span className="absolute top-0.5 left-0.5 text-[8px] sm:text-[10px] leading-none text-gray-600 font-normal select-none pointer-events-none">
+                  {cell.clueIndex}
+                </span>
+              )}
+              <input
+                ref={(el) => { inputRefs.current[key] = el; }}
+                type="text"
+                maxLength={1}
+                value={value}
+                onChange={(e) => onInputChange(r, c, e.target.value)}
+                onKeyDown={(e) => onKeyDown(e, r, c)}
+                className="w-full h-full bg-transparent text-center outline-none cursor-pointer uppercase text-base sm:text-xl"
+              />
+            </div>
           );
         })
       )}

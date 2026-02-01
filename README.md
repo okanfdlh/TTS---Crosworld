@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Crossword Puzzle Creator & Player
 
-## Getting Started
+A full-stack application to create, share, and play crossword puzzles. Built with Next.js 14 (App Router), Tailwind CSS, and Prisma (SQLite).
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### For Creators
+- **Smart Generation Algorithm**: Automatically arranges words into a valid crossword grid.
+- **Interactive Preview**: See the grid before publishing.
+- **Validation**: Ensures puzzles are solvable and valid.
+- **Publishing**: Save puzzles with a unique URL.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### For Players
+- **Interactive Grid**: Keyboard navigation (Arrow keys), auto-skip filled cells.
+- **Clue List**: Click clues to highlight the corresponding word in the grid.
+- **Validation**: Check your answers instantly.
+- **Celebration**: Confetti on completion!
+- **Mobile Responsive**: Play on any device.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
+- **Frontend**: Next.js 14, React, Tailwind CSS, Lucide Icons.
+- **Backend**: Next.js Server Actions.
+- **Database**: SQLite with Prisma ORM.
+- **Algorithm**: Randomized Greedy Backtracking with strict validation.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Algorithm Explanation
+The core logic resides in `lib/generator.ts`:
+1.  **Sorting**: Words are sorted by length (descending) to place the "backbone" words first.
+2.  **Placement Strategy**:
+    -   The first word is placed in the center.
+    -   Subsequent words are tested against *every* letter of currently placed words to find intersections.
+3.  **Validation (`canPlace`)**:
+    -   Ensures the word fits within bounds.
+    -   Checks that letters match at intersections.
+    -   **Crucial**: Checks that the word does not form invalid adjacent 2-letter words with neighbors (isolation check).
+4.  **Optimization**: The generator runs multiple attempts (default 20) with shuffled inputs to find the layout that fits the most words.
 
-## Learn More
+## How to Run Locally
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2.  **Setup Database**
+    ```bash
+    npx prisma migrate dev --name init
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3.  **Run Development Server**
+    ```bash
+    npm run dev
+    ```
 
-## Deploy on Vercel
+4.  Open [http://localhost:3000](http://localhost:3000) (or 3001 if 3000 is busy).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
+-   `app/`: Next.js App Router pages.
+    -   `create/`: Puzzle creator.
+    -   `puzzle/[id]/`: Player interface.
+    -   `actions.ts`: Server actions for database operations.
+-   `lib/`: Core logic.
+    -   `generator.ts`: The crossword generation algorithm.
+    -   `types.ts`: TypeScript definitions.
+-   `components/`: Reusable UI components (`CrosswordGrid`, `CrosswordPlayerGrid`).
+-   `prisma/`: Database schema.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Demo Flow
+1.  Click "Create New Puzzle".
+2.  Add words like "REACT", "NEXTJS", "PRISMA".
+3.  Click "Generate Puzzle".
+4.  If satisfied, add a Title and click "Publish".
+5.  Share the URL or play it yourself!

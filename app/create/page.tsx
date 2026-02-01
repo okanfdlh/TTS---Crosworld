@@ -1,209 +1,281 @@
 "use client";
 
 import { useState } from "react";
-import CrosswordGrid from "@/components/CrosswordGrid";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Plus,
+  Trash2,
+  RefreshCw,
+  Save,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
+
 import { generateCrossword } from "@/lib/generator";
+import { GridState } from "@/lib/types";
+import CrosswordGrid from "@/components/CrosswordGrid";
 
-type WordInput = {
+type WordItem = {
+  id: number;
   answer: string;
   clue: string;
 };
 
-type PlacedWord = {
-  answer: string;
-  clue: string;
-  row: number;
-  col: number;
-  direction: "across" | "down";
-};
-
-type PreviewResult = {
-  grid: { letter: string | null }[][];
-  placedWords: PlacedWord[];
-};
+const sanitizeAnswer = (value: string) =>
+  value.toUpperCase().replace(/[^A-Z]/g, "");
 
 export default function CreatePage() {
-  const [words, setWords] = useState<WordInput[]>([
-    { answer: "", clue: "" },
+  const router = useRouter();
+
+  const [title, setTitle] = useState("");
+  const [words, setWords] = useState<WordItem[]>([
+    { id: 1, answer: "REACT", clue: "A JavaScript library for building user interfaces" },
+    { id: 2, answer: "NEXTJS", clue: "The React Framework for the Web" },
+    { id: 3, answer: "VERCEL", clue: "Platform for frontend frameworks and static sites" },
+    { id: 4, answer: "TYPESCRIPT", clue: "JavaScript with syntax for types" },
+    { id: 5, answer: "TAILWIND", clue: "A utility-first CSS framework" },
   ]);
-  const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  function addWord() {
-    setWords([...words, { answer: "", clue: "" }]);
-  }
+  const [grid, setGrid] = useState<GridState | null>(null);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  function removeWord(index: number) {
-    setWords(words.filter((_, i) => i !== index));
-  }
+  /* ---------------- helpers ---------------- */
 
-  function updateWord(
-    index: number,
-    field: keyof WordInput,
+  const getValidWords = () =>
+    words.filter((w) => w.answer.length >= 2 && w.clue.trim().length > 0);
+
+  /* ---------------- handlers ---------------- */
+
+  const addWord = () => {
+    setWords((prev) => [
+      ...prev,
+      { id: Date.now(), answer: "", clue: "" },
+    ]);
+  };
+
+  const removeWord = (id: number) => {
+    setWords((prev) => prev.filter((w) => w.id !== id));
+  };
+
+  const updateWord = (
+    id: number,
+    field: "answer" | "clue",
     value: string
-  ) {
-    setWords((prev) => {
-      const updated = [...prev];
-      updated[index][field] =
-        field === "answer"
-          ? value.toUpperCase().replace(/[^A-Z]/g, "")
-          : value;
-      return updated;
-    });
-  }
-
-  function isValid() {
-    return (
-      words.length >= 5 &&
-      words.every(
-        (w) => w.answer.trim().length > 0 && w.clue.trim().length > 0
+  ) => {
+    setWords((prev) =>
+      prev.map((w) =>
+        w.id === id
+          ? {
+            ...w,
+            [field]: field === "answer" ? sanitizeAnswer(value) : value,
+          }
+          : w
       )
     );
-  }
+  };
 
-  function handleGenerate() {
-    setError(null);
-    setPreview(null);
+  const handleGenerate = () => {
+    setError("");
 
-    if (!isValid()) {
-      setError("Minimum 5 words with valid answers and clues.");
+    const validWords = getValidWords();
+    if (validWords.length < 2) {
+      setError("Please add at least 2 valid words with clues.");
       return;
     }
 
-    const result = generateCrossword(words);
-
-    if (result.placedWords.length < 5) {
-      setError(
-        `Only ${result.placedWords.length} words could be placed. Try different words.`
-      );
-      return;
+    try {
+      const result = generateCrossword(validWords);
+      setGrid(result);
+    } catch {
+      setError("Failed to generate puzzle. Try different or shorter words.");
     }
+  };
 
-    setPreview(result);
-  }
+  const handleSave = async () => {
+    if (!grid || !title.trim()) return;
 
-  async function handlePublish() {
-    if (!preview) return;
-
-    setLoading(true);
-    setError(null);
+    setIsSaving(true);
+    setError("");
 
     try {
       const res = await fetch("/api/puzzles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: `Crossword ${new Date().toLocaleString()}`,
-          grid: preview.grid,
-          words: preview.placedWords,
+          title,
+          gridState: grid,
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to publish puzzle");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save puzzle");
       }
 
       const puzzle = await res.json();
-      window.location.href = `/puzzle/${puzzle.id}`;
-    } catch (err) {
-      setError("Failed to publish puzzle. Please try again.");
-      setLoading(false);
+      router.push(`/puzzle/${puzzle.id}`);
+    } catch (err: any) {
+      console.error("Save error:", err);
+      setError(err.message || "Failed to save puzzle.");
+    } finally {
+      setIsSaving(false);
     }
-  }
+  };
+
+  /* ---------------- render ---------------- */
 
   return (
-    <main className="max-w-3xl mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-4">
-        Create Crossword Puzzle
-      </h1>
+    <div className="min-h-screen bg-background text-foreground p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <header className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+            <h1 className="text-3xl font-bold text-foreground">
+              Create New Puzzle
+            </h1>
+          </div>
 
-      <div className="space-y-4">
-        {words.map((word, index) => (
-          <div
-            key={index}
-            className="border p-4 rounded-md space-y-2"
-          >
+          {grid && (
+            <button
+              onClick={handleSave}
+              disabled={!title || isSaving}
+              className="flex items-center gap-2 px-6 py-2
+                       bg-green-600 text-white rounded-lg
+                       disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Publish
+            </button>
+          )}
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left */}
+          <div className="bg-background p-6 rounded-xl
+                        border border-black/10 dark:border-white/10">
+            <label className="block text-sm font-medium mb-1 text-foreground">
+              Puzzle Title
+            </label>
+
             <input
-              type="text"
-              placeholder="Answer (A-Z)"
-              value={word.answer}
-              onChange={(e) =>
-                updateWord(index, "answer", e.target.value)
-              }
-              className="w-full border px-3 py-2 rounded"
-            />
-            <input
-              type="text"
-              placeholder="Clue"
-              value={word.clue}
-              onChange={(e) =>
-                updateWord(index, "clue", e.target.value)
-              }
-              className="w-full border px-3 py-2 rounded"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Web Dev Challenge"
+              className="w-full px-4 py-2 mb-6 rounded-lg
+                       bg-background text-foreground
+                       border border-black/20 dark:border-white/20
+                       placeholder:text-black/40
+                       dark:placeholder:text-white/40"
             />
 
-            {words.length > 1 && (
-              <button
-                onClick={() => removeWord(index)}
-                className="text-sm text-red-500"
-              >
-                Remove
-              </button>
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              {words.map((word, index) => (
+                <div
+                  key={word.id}
+                  className="flex gap-3 items-start p-3 rounded-lg
+                           bg-background
+                           border border-black/10 dark:border-white/10"
+                >
+                  <span className="mt-2 text-sm text-black/40 dark:text-white/40">
+                    {index + 1}
+                  </span>
+
+                  <div className="flex-1 space-y-2">
+                    <input
+                      value={word.answer}
+                      onChange={(e) =>
+                        updateWord(word.id, "answer", e.target.value)
+                      }
+                      placeholder="ANSWER"
+                      className="w-full px-3 py-1.5 rounded
+                               bg-background text-foreground
+                               border border-black/20 dark:border-white/20
+                               font-mono uppercase
+                               placeholder:text-black/40
+                               dark:placeholder:text-white/40"
+                    />
+
+                    <input
+                      value={word.clue}
+                      onChange={(e) =>
+                        updateWord(word.id, "clue", e.target.value)
+                      }
+                      placeholder="Clue"
+                      className="w-full px-3 py-1.5 rounded
+                               bg-background text-foreground
+                               border border-black/20 dark:border-white/20
+                               placeholder:text-black/40
+                               dark:placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => removeWord(word.id)}
+                    className="text-black/40 dark:text-white/40
+                             hover:text-red-500"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={addWord}
+              className="w-full mt-4 py-2 rounded-lg
+                       border-2 border-dashed
+                       border-black/30 dark:border-white/30
+                       text-black/50 dark:text-white/50"
+            >
+              <Plus className="inline w-4 h-4 mr-2" />
+              Add Word
+            </button>
+
+            <button
+              onClick={handleGenerate}
+              className="w-full mt-6 py-3
+                       bg-blue-600 text-white
+                       rounded-lg font-bold"
+            >
+              <RefreshCw className="inline w-4 h-4 mr-2" />
+              Generate Puzzle
+            </button>
+
+            {error && (
+              <div className="mt-4 p-3 rounded
+                            bg-red-500/10
+                            text-red-600 dark:text-red-400">
+                {error}
+              </div>
             )}
           </div>
-        ))}
-      </div>
 
-      <button
-        onClick={addWord}
-        className="mt-4 px-4 py-2 bg-gray-200 rounded"
-      >
-        + Add Word
-      </button>
-
-      <p className="text-sm text-gray-500 mt-2">
-        Words: {words.length} / Minimum 5
-      </p>
-
-      {error && (
-        <p className="mt-4 text-sm text-red-600">{error}</p>
-      )}
-
-      <div className="mt-6 flex gap-4">
-        <button
-          onClick={handleGenerate}
-          disabled={!isValid() || loading}
-          className={`px-6 py-2 rounded text-white
-            ${
-              isValid()
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
-        >
-          Generate TTS
-        </button>
-
-        {preview && (
-          <button
-            onClick={handlePublish}
-            disabled={loading}
-            className="px-6 py-2 bg-green-600 text-white rounded"
-          >
-            {loading ? "Publishing..." : "Publish Puzzle"}
-          </button>
-        )}
-      </div>
-
-      {preview && (
-        <div className="mt-8">
-          <h2 className="font-bold mb-1">Preview</h2>
-          <p className="text-sm text-gray-500 mb-2">
-            {preview.placedWords.length} words placed
-          </p>
-          <CrosswordGrid grid={preview.grid} />
+          {/* Right */}
+          <div className="bg-background p-6 rounded-xl
+                        border border-black/10 dark:border-white/10
+                        flex items-center justify-center">
+            {grid ? (
+              <CrosswordGrid grid={grid} />
+            ) : (
+              <p className="text-black/40 dark:text-white/40 text-center">
+                Add words and click Generate
+              </p>
+            )}
+          </div>
         </div>
-      )}
-    </main>
+      </div>
+    </div>
   );
 }
