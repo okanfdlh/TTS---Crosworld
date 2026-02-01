@@ -3,20 +3,22 @@ import Link from "next/link";
 import { Plus, Gamepad2, Calendar, Grid } from "lucide-react";
 import { GridState } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { dummyPuzzle } from "@/lib/dummy-puzzle";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const puzzles = await prisma.puzzle.findMany({
+  // fetch from DB
+  const dbPuzzles = await prisma.puzzle.findMany({
     orderBy: { createdAt: "desc" },
   });
 
+  // fallback to dummy puzzle
+  const puzzles = dbPuzzles.length > 0 ? dbPuzzles : [dummyPuzzle];
+  const isUsingDummy = dbPuzzles.length === 0;
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      {/* Header */}
-      <header className="fixed top-4 right-4 z-50">
-        <ThemeToggle />
-      </header>
 
       {/* Hero Section */}
       <div className="border-b border-border pb-16 pt-24 px-6 md:px-8">
@@ -57,62 +59,75 @@ export default async function Home() {
           <h2 className="text-2xl font-bold">Recent Puzzles</h2>
         </div>
 
-        {puzzles.length === 0 ? (
-          <div className="text-center py-20 bg-card rounded-2xl border border-border">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Grid className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-muted-foreground text-lg">
-              No puzzles yet. Be the first to create one!
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {puzzles.map((puzzle) => {
-              const data = JSON.parse(puzzle.data) as GridState;
+        {isUsingDummy && (
+          <p className="mb-6 text-sm text-muted-foreground">
+            Showing a sample puzzle because the database is empty.
+          </p>
+        )}
 
-              return (
-                <Link
-                  key={puzzle.id}
-                  href={`/puzzle/${puzzle.id}`}
-                  className="
-                    group block
-                    bg-card text-card-foreground
-                    p-6 rounded-xl
-                    border border-border
-                    shadow-sm
-                    hover:shadow-md
-                    hover:border-primary/40
-                    transition
-                  "
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-xl font-bold group-hover:text-primary transition">
-                      {puzzle.title}
-                    </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {puzzles.map((puzzle) => {
+            const data = JSON.parse(puzzle.data) as GridState;
+            const isSample = puzzle.id === "dummy-puzzle";
 
-                    <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
-                      {data.placedWords.length} Words
+            const Card = (
+              <div
+                className={`
+                  group block
+                  bg-card text-card-foreground
+                  p-6 rounded-xl
+                  border border-border
+                  shadow-sm
+                  transition
+                  ${
+                    isSample
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:shadow-md hover:border-primary/40"
+                  }
+                `}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold group-hover:text-primary transition">
+                    {puzzle.title}
+                  </h3>
+
+                  <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase">
+                    {isSample
+                      ? "Sample"
+                      : `${data.placedWords.length} Words`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Grid className="w-4 h-4" />
+                    <span>
+                      {data.cols}×{data.rows}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Grid className="w-4 h-4" />
-                      <span>{data.cols}×{data.rows}</span>
-                    </div>
+                  {!isSample && (
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       <span>
                         {new Date(puzzle.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+                  )}
+                </div>
+              </div>
+            );
+
+            // clickable only if NOT dummy
+            return isSample ? (
+              <div key={puzzle.id}>{Card}</div>
+            ) : (
+              <Link key={puzzle.id} href={`/puzzle/${puzzle.id}`}>
+                {Card}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import PuzzleClient from "./PuzzleClient";
 import { notFound } from "next/navigation";
 import { GridState } from "@/lib/types";
 
+
 export default async function PuzzlePage({
   params,
 }: {
@@ -18,6 +19,7 @@ export default async function PuzzlePage({
   }
 
   const grid = JSON.parse(puzzle.data) as GridState;
+  
 
   return <PuzzleClient initialGrid={grid} title={puzzle.title} id={puzzle.id} />;
 }
