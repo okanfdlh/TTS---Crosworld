@@ -5,12 +5,15 @@ type Props = {
   grid: GridState;
   userInputs: Record<string, string>;
   activeCell: { r: number; c: number } | null;
-  direction: Direction;
+  direction: "across" | "down";
   onCellClick: (r: number, c: number) => void;
   onInputChange: (r: number, c: number, char: string) => void;
   onKeyDown: (e: React.KeyboardEvent, r: number, c: number) => void;
   highlightedWord: PlacedWord | null;
+
+  showErrors?: boolean;
 };
+
 
 export default function CrosswordPlayerGrid({
   grid,
