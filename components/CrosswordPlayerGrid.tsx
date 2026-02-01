@@ -1,9 +1,9 @@
-import { Cell, Direction, GridState, PlacedWord } from "@/lib/types";
+import { Direction, GridState, PlacedWord } from "@/lib/types";
 import { useEffect, useRef } from "react";
 
 type Props = {
   grid: GridState;
-  userInputs: Record<string, string>; // key: "r-c", value: letter
+  userInputs: Record<string, string>;
   activeCell: { r: number; c: number } | null;
   direction: Direction;
   onCellClick: (r: number, c: number) => void;
@@ -16,7 +16,6 @@ export default function CrosswordPlayerGrid({
   grid,
   userInputs,
   activeCell,
-  direction,
   onCellClick,
   onInputChange,
   onKeyDown,
@@ -26,27 +25,26 @@ export default function CrosswordPlayerGrid({
 
   useEffect(() => {
     if (activeCell) {
-      const key = `${activeCell.r}-${activeCell.c}`;
-      inputRefs.current[key]?.focus();
+      inputRefs.current[`${activeCell.r}-${activeCell.c}`]?.focus();
     }
   }, [activeCell]);
 
   const isCellInHighlightedWord = (r: number, c: number) => {
     if (!highlightedWord) return false;
-    
+
     if (highlightedWord.direction === "across") {
       return (
         r === highlightedWord.row &&
         c >= highlightedWord.col &&
         c < highlightedWord.col + highlightedWord.answer.length
       );
-    } else {
-      return (
-        c === highlightedWord.col &&
-        r >= highlightedWord.row &&
-        r < highlightedWord.row + highlightedWord.answer.length
-      );
     }
+
+    return (
+      c === highlightedWord.col &&
+      r >= highlightedWord.row &&
+      r < highlightedWord.row + highlightedWord.answer.length
+    );
   };
 
   return (
@@ -58,39 +56,74 @@ export default function CrosswordPlayerGrid({
     >
       {grid.cells.map((row, r) =>
         row.map((cell, c) => {
+          const key = `${r}-${c}`;
           const isBlack = !cell.letter;
           const isActive = activeCell?.r === r && activeCell?.c === c;
           const isHighlighted = isCellInHighlightedWord(r, c);
-          const key = `${r}-${c}`;
           const value = userInputs[key] || "";
 
           if (isBlack) {
             return (
-              <div key={key} className="bg-gray-900 w-8 h-8 sm:w-10 sm:h-10" />
+              <div
+                key={key}
+                className="bg-gray-900 w-8 h-8 sm:w-10 sm:h-10"
+              />
             );
           }
 
           return (
             <div
               key={key}
-              className={`relative w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center font-bold uppercase
-                ${isActive ? "bg-yellow-200" : isHighlighted ? "bg-blue-100" : "bg-white"}
-              `}
               onClick={() => onCellClick(r, c)}
+              className={`
+                relative w-8 h-8 sm:w-10 sm:h-10
+                flex items-center justify-center
+                font-bold uppercase
+                cursor-pointer
+                ${
+                  isActive
+                    ? "bg-yellow-200"
+                    : isHighlighted
+                    ? "bg-blue-100"
+                    : "bg-white"
+                }
+              `}
             >
               {cell.clueIndex && (
-                <span className="absolute top-0.5 left-0.5 text-[8px] sm:text-[10px] leading-none text-gray-600 font-normal select-none pointer-events-none">
+                <span
+                  className="
+                    absolute top-0.5 left-0.5
+                    text-[8px] sm:text-[10px]
+                    text-gray-600
+                    font-normal
+                    pointer-events-none
+                    select-none
+                  "
+                >
                   {cell.clueIndex}
                 </span>
               )}
+
               <input
-                ref={(el) => { inputRefs.current[key] = el; }}
+                ref={(el) => {
+                  inputRefs.current[key] = el;
+                }}
                 type="text"
                 maxLength={1}
                 value={value}
                 onChange={(e) => onInputChange(r, c, e.target.value)}
                 onKeyDown={(e) => onKeyDown(e, r, c)}
-                className="w-full h-full bg-transparent text-center outline-none cursor-pointer uppercase text-base sm:text-xl"
+                className="
+                  w-full h-full
+                  bg-transparent
+                  text-center
+                  outline-none
+                  uppercase
+                  text-base sm:text-xl
+                  font-bold
+                  text-black
+                  caret-black
+                "
               />
             </div>
           );
